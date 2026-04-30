@@ -24,3 +24,7 @@ Prosta aplikacja SPA (HTML + CSS + JS) do przegladania i edycji plikow Markdown.
 - Podglad wykorzystuje `marked` + `DOMPurify` z CDN.
 - Styl oparty o specyfikacje Neumorphism z pliku `Specyfikacja_Neumorphism.md`.
 
+## Informacja o repozytorium
+
+Historia repozytorium została uproszczona: zdalne repo zostało zastąpione jednym commitem zawierającym tylko `index.html`, `styles.css` oraz `README.md`.
+Operacja wykonana lokalnie: pliki dodatkowe pozostały na dysku, ale nie są już śledzone przez Git. Data operacji: Thu Apr 30 2026.
