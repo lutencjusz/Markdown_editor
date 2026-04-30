@@ -1,30 +1,29 @@
-# Przegladarka Markdown SPA
+# Markdown Browser SPA
 
-Prosta aplikacja SPA (HTML + CSS + JS) do przegladania i edycji plikow Markdown.
+A simple SPA application (HTML + CSS + JS) for browsing and editing Markdown files.
 
-## Funkcje
+## Features
 
-- drzewo plikow `.md` (rekurencyjnie z podkatalogow) ze zwijaniem i rozwijaniem folderow,
-- edytor surowego Markdown,
-- podglad na zywo,
-- zapis przez przycisk `Zapisz` i skrot `Ctrl+S`,
-- regulowana szerokosc paneli,
-- zapamietywanie ostatniego pliku i stanu rozwinięcia drzewa (localStorage, per nazwa katalogu),
-- brak funkcji tworzenia plikow/katalogow.
+- `.md` file tree (recursively from subdirectories) with folder collapsing and expanding,
+- raw Markdown editor,
+- live preview,
+- save via the `Save` button and `Ctrl+S` shortcut,
+- adjustable panel widths,
+- remembers the last file and tree expansion state (localStorage, per folder name),
+- no file/folder creation functionality.
 
-## Uruchomienie
+## Running the Application
 
-1. Otworz `code.html` w aktualnym Chrome lub Edge.
-2. Kliknij `Wybierz katalog` i wskaz katalog roboczy.
-3. Wybierz plik `.md`, edytuj i zapisz.
+1. Open `code.html` in the current Chrome or Edge.
+2. Click `Select Directory` and choose a working directory.
+3. Select a `.md` file, edit, and save.
 
-## Uwagi techniczne
+## Technical Notes
 
-- Dostep do systemu plikow realizuje API `showDirectoryPicker` (wymaga wspieranej przegladarki).
-- Podglad wykorzystuje `marked` + `DOMPurify` z CDN.
-- Styl oparty o specyfikacje Neumorphism z pliku `Specyfikacja_Neumorphism.md`.
+- File system access is implemented using the `showDirectoryPicker` API (requires a supported browser).
+- Preview uses `marked` + `DOMPurify` from a CDN.
+- Styling is based on the Neumorphism specification from the `Specyfikacja_Neumorphism.md` file.
 
-## Informacja o repozytorium
+## Repository Information
 
-Historia repozytorium została uproszczona: zdalne repo zostało zastąpione jednym commitem zawierającym tylko `index.html`, `styles.css` oraz `README.md`.
-Operacja wykonana lokalnie: pliki dodatkowe pozostały na dysku, ale nie są już śledzone przez Git. Data operacji: Thu Apr 30 2026.
+The repository history has been simplified: the remote repository has been replaced with a single commit containing only `index.html`, `styles.css`, and `README.md`. The operation was performed locally: additional files remained on disk but are no longer tracked by Git. Operation date: Thu Apr 30 2026.

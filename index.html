@@ -67,6 +67,18 @@
       workspaceId: null
     };
 
+    // Runtime check: ensure DOMPurify is available. If not, provide a minimal fallback
+    // and warn in console/toast so the app doesn't throw when calling DOMPurify.sanitize.
+    if (typeof DOMPurify === 'undefined') {
+      console.error('DOMPurify is not available. Markdown sanitization will be disabled.');
+      // Minimal fallback to avoid runtime errors (returns raw HTML — unsafe). Keep app running.
+      window.DOMPurify = { sanitize: (s) => s };
+      const warn = document.createElement('div');
+      warn.className = 'toast panel-convex px-4 py-2 text-[#b45f00] font-bold';
+      warn.textContent = 'Uwaga: biblioteka DOMPurify nie została załadowana. Treść może nie być sanitizowana.';
+      el.toastContainer.appendChild(warn);
+      setTimeout(() => warn.remove(), 6000);
+    }
     const el = {
       pickFolder: document.getElementById('pick-folder'),
       saveBtn: document.getElementById('save-btn'),
@@ -216,11 +228,9 @@
       header.appendChild(icon);
       header.appendChild(nameSpan);
       header.addEventListener('click', () => {
-        if (isExpanded) {
-          state.expandedFolders.delete(folderPath);
-        } else {
-          state.expandedFolders.add(folderPath);
-        }
+        const currently = state.expandedFolders.has(folderPath);
+        if (currently) state.expandedFolders.delete(folderPath);
+        else state.expandedFolders.add(folderPath);
         saveExpandedFoldersToStorage();
         renderTree(state.treeRoot);
       });
@@ -266,6 +276,7 @@
         });
         updateDirtyIndicator();
       } catch (e) {
+        console.error('openFile error', e);
         showToast('Nie udało się otworzyć pliku.');
       }
     }
@@ -285,6 +296,7 @@
         showToast('Plik zapisany.');
         updateDirtyIndicator();
       } catch (e) {
+        console.error('saveCurrentFile error', e);
         showToast('Nie udało się zapisać pliku.');
       }
     }
@@ -322,22 +334,28 @@
         if (fileToOpen) await openFile(fileToOpen);
       } catch (error) {
         if (error && error.name !== 'AbortError') {
+          console.error('loadWorkspace error', error);
           showToast('Nie udało się otworzyć katalogu.');
         }
       }
     }
 
     function setupResizer(resizerId, leftPanelId, min, max) {
+      // Use Pointer Events for broader device support (mouse, touch, pen)
       const resizer = document.getElementById(resizerId);
       const panel = document.getElementById(leftPanelId);
       let dragging = false;
 
-      resizer.addEventListener('mousedown', () => {
+      // Prevent touch scrolling while dragging where supported
+      try { resizer.style.touchAction = 'none'; } catch (e) { /* ignore */ }
+
+      resizer.addEventListener('pointerdown', (e) => {
         dragging = true;
+        try { resizer.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         document.body.style.cursor = 'col-resize';
       });
 
-      window.addEventListener('mousemove', (event) => {
+      window.addEventListener('pointermove', (event) => {
         if (!dragging) return;
         const rect = el.layout.getBoundingClientRect();
         const x = event.clientX - rect.left;
@@ -351,7 +369,7 @@
         panel.style.width = `${Math.max(min, Math.min(max, x - leftWidth - 16))}px`;
       });
 
-      window.addEventListener('mouseup', () => {
+      window.addEventListener('pointerup', () => {
         dragging = false;
         document.body.style.cursor = 'default';
       });
