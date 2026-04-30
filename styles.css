@@ -21,6 +21,21 @@ body {
   box-shadow: 0 7px 14px rgba(73, 159, 209, 0.35), 0 -2px 7px rgba(97, 211, 255, 0.25);
 }
 
+/* Header title container with small subtext */
+.header-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.header-subtext {
+  font-size: 0.65rem; /* zdecydowanie mniejszy zapis */
+  color: rgba(0, 71, 103, 0.55);
+  font-weight: 600;
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+}
+
 .panel {
   border-radius: 0.95rem;
   background: var(--azure-base);
