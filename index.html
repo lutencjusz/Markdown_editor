@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Przegladarka Markdown SPA</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300..700&display=swap" />
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="h-screen overflow-hidden">
+  <div id="toast-container" class="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+  <header class="app-header px-6 md:px-8 h-20 flex items-center justify-between gap-4">
+    <h1 class="text-3xl font-extrabold tracking-tight text-[#004767]">Markdown Browser</h1>
+    <div class="flex items-center gap-3">
+      <button id="pick-folder" class="btn btn-convex px-4 py-2 font-bold">Wybierz katalog</button>
+      <button id="save-btn" class="btn btn-gradient px-6 py-2 font-bold">Zapisz</button>
+    </div>
+  </header>
+
+  <main id="layout" class="h-[calc(100vh-5rem)] p-6 pt-4 flex gap-4">
+    <aside id="file-browser" class="pl-3 pr-3 pb-3 panel panel-convex shrink-0 w-[300px] min-w-[220px]">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold text-[#004767]">Pliki Markdown</h2>
+        <p id="workspace-label" class="text-xs text-[#004767]/65">Brak wybranego katalogu</p>
+      </div>
+      <div id="file-tree" class="h-[calc(100%-3.5rem)] overflow-y-auto overflow-x-hidden custom-scrollbar pr-2"></div>
+    </aside>
+
+    <div id="resizer-1" class="resizer" aria-hidden="true"></div>
+
+    <section id="editor-panel" class="pl-3 pr-3 pb-3 panel panel-convex shrink-0 w-[460px] min-w-[280px] flex flex-col">
+      <div class="p-3 flex items-center justify-between gap-3">
+        <h3 class="text-sm font-bold text-[#004767]/80">Edytor</h3>
+        <p id="active-file" class="text-xs text-[#004767]/70 truncate">Wybierz plik</p>
+      </div>
+      <div class="panel panel-concave flex-1">
+        <textarea id="md-input" aria-label="Edytor markdown" class="pl-3 pr-3 w-full h-full bg-transparent resize-none border-none outline-none focus:ring-0 text-[#002d3d] font-semibold leading-relaxed font-mono text-sm custom-scrollbar" spellcheck="false" placeholder="Wybierz plik markdown z drzewa po lewej..."></textarea>
+      </div>
+    </section>
+
+    <div id="resizer-2" class="resizer" aria-hidden="true"></div>
+
+    <section id="preview-panel" class="pl-3 pr-3 pb-3 panel panel-convex min-w-0 flex-1 flex flex-col">
+      <div class="p-3 flex items-center justify-between gap-3">
+        <h3 class="text-sm font-bold text-[#004767]/80">Podglad na zywo</h3>
+      </div>
+      <article id="md-output" class="panel panel-flat flex-1 p-6 overflow-auto custom-scrollbar prose max-w-none prose-headings:text-[#002d3d] prose-headings:font-bold prose-p:text-[#002d3d] prose-p:font-600 prose-strong:text-[#002d3d] prose-strong:font-bold prose-code:white"></article>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      rootHandle: null,
+      fileMap: new Map(),
+      currentPath: null,
+      isDirty: false,
+      treeRoot: null,
+      expandedFolders: new Set(),
+      workspaceId: null
+    };
+
+    const el = {
+      pickFolder: document.getElementById('pick-folder'),
+      saveBtn: document.getElementById('save-btn'),
+      workspaceLabel: document.getElementById('workspace-label'),
+      tree: document.getElementById('file-tree'),
+      textarea: document.getElementById('md-input'),
+      preview: document.getElementById('md-output'),
+      activeFile: document.getElementById('active-file'),
+      toastContainer: document.getElementById('toast-container'),
+      fileBrowser: document.getElementById('file-browser'),
+      editorPanel: document.getElementById('editor-panel'),
+      layout: document.getElementById('layout')
+    };
+
+    const STORAGE_PREFIX = 'md-browser';
+
+    function getWorkspaceStorageKey(suffix) {
+      return `${STORAGE_PREFIX}:${state.workspaceId || 'default'}:${suffix}`;
+    }
+
+    function loadExpandedFoldersFromStorage() {
+      try {
+        const raw = window.localStorage.getItem(getWorkspaceStorageKey('expandedFolders'));
+        if (!raw) return new Set();
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? new Set(parsed) : new Set();
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveExpandedFoldersToStorage() {
+      try {
+        window.localStorage.setItem(getWorkspaceStorageKey('expandedFolders'), JSON.stringify([...state.expandedFolders]));
+      } catch {
+        // Ignore storage errors (private mode / quota).
+      }
+    }
+
+    function loadLastFileFromStorage() {
+      try {
+        return window.localStorage.getItem(getWorkspaceStorageKey('lastFilePath'));
+      } catch {
+        return null;
+      }
+    }
+
+    function saveLastFileToStorage(path) {
+      try {
+        window.localStorage.setItem(getWorkspaceStorageKey('lastFilePath'), path);
+      } catch {
+        // Ignore storage errors (private mode / quota).
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast panel-convex px-6 py-3 text-[#004767] font-bold';
+      toast.textContent = message;
+      el.toastContainer.appendChild(toast);
+      setTimeout(() => toast.remove(), 2600);
+    }
+
+    function updateDirtyIndicator() {
+      if (state.isDirty && state.currentPath) {
+        el.activeFile.classList.add('file-dirty');
+        const fileBtn = document.querySelector(`.tree-file[data-path="${CSS.escape(state.currentPath)}"]`);
+        if (fileBtn) fileBtn.classList.add('file-dirty');
+      } else {
+        el.activeFile.classList.remove('file-dirty');
+        document.querySelectorAll('.tree-file.file-dirty').forEach((btn) => {
+          btn.classList.remove('file-dirty');
+        });
+      }
+    }
+
+    function renderMarkdown() {
+      const raw = el.textarea.value;
+      const html = marked.parse(raw, { breaks: true, gfm: true });
+      el.preview.innerHTML = DOMPurify.sanitize(html);
+      requestAnimationFrame(syncPreviewScrollFromEditor);
+    }
+
+    function syncPreviewScrollFromEditor() {
+      const editorScrollable = el.textarea.scrollHeight - el.textarea.clientHeight;
+      const previewScrollable = el.preview.scrollHeight - el.preview.clientHeight;
+
+      if (editorScrollable <= 0 || previewScrollable <= 0) {
+        el.preview.scrollTop = 0;
+        return;
+      }
+
+      const scrollRatio = el.textarea.scrollTop / editorScrollable;
+      el.preview.scrollTop = scrollRatio * previewScrollable;
+    }
+
+    async function scanDirectory(dirHandle, parentPath, autoExpandDirs) {
+      const node = { type: 'dir', name: dirHandle.name, path: parentPath, children: [] };
+      const entries = [];
+
+      for await (const entry of dirHandle.values()) entries.push(entry);
+      entries.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'directory' ? -1 : 1));
+
+      for (const entry of entries) {
+        if (entry.kind === 'directory') {
+          const path = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+          if (autoExpandDirs) state.expandedFolders.add(path);
+          const childDir = await scanDirectory(entry, path, autoExpandDirs);
+          if (childDir.children.length > 0) node.children.push(childDir);
+          continue;
+        }
+
+        if (entry.name.toLowerCase().endsWith('.md')) {
+          const path = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+          state.fileMap.set(path, entry);
+          node.children.push({ type: 'file', name: entry.name, path: path });
+        }
+      }
+
+      return node;
+    }
+
+    function renderTreeNode(node, depth) {
+      if (node.type === 'file') {
+        const button = document.createElement('button');
+        button.className = 'tree-file w-full text-left px-3 py-2 rounded-xl';
+        button.style.marginLeft = `${depth * 12}px`;
+        button.textContent = node.name;
+        button.dataset.path = node.path;
+        button.addEventListener('click', () => openFile(node.path));
+        return button;
+      }
+
+      const wrapper = document.createElement('div');
+      const header = document.createElement('button');
+      const folderPath = node.path || '__root__';
+      const isExpanded = state.expandedFolders.has(folderPath);
+      header.type = 'button';
+      header.className = 'tree-folder px-3 py-2 rounded-xl font-bold';
+      header.style.marginLeft = `${depth * 12}px`;
+      // Zabezpieczenie przed XSS: createElement + textContent
+      const icon = document.createElement('span');
+      icon.className = 'material-symbols-outlined folder-icon';
+      icon.textContent = isExpanded ? 'expand_more' : 'chevron_right';
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = node.name;
+      header.appendChild(icon);
+      header.appendChild(nameSpan);
+      header.addEventListener('click', () => {
+        if (isExpanded) {
+          state.expandedFolders.delete(folderPath);
+        } else {
+          state.expandedFolders.add(folderPath);
+        }
+        saveExpandedFoldersToStorage();
+        renderTree(state.treeRoot);
+      });
+      wrapper.appendChild(header);
+
+      if (isExpanded) {
+        node.children.forEach((child) => wrapper.appendChild(renderTreeNode(child, depth + 1)));
+      }
+      return wrapper;
+    }
+
+    function renderTree(rootNode) {
+      el.tree.innerHTML = '';
+
+      if (rootNode.children.length === 0) {
+        el.tree.innerHTML = '<p class="text-sm text-[#004767]/70 px-2">Nie znaleziono plików .md.</p>';
+        return;
+      }
+
+      rootNode.children.forEach((child) => el.tree.appendChild(renderTreeNode(child, 0)));
+    }
+
+    async function openFile(path) {
+      if (state.isDirty) {
+        const ok = window.confirm('Masz niezapisane zmiany. Kontynuować bez zapisu?');
+        if (!ok) return;
+      }
+
+      const handle = state.fileMap.get(path);
+      if (!handle) return;
+
+      try {
+        const file = await handle.getFile();
+        el.textarea.value = await file.text();
+        state.currentPath = path;
+        state.isDirty = false;
+        el.activeFile.textContent = path;
+        saveLastFileToStorage(path);
+        renderMarkdown();
+
+        document.querySelectorAll('.tree-file').forEach((node) => {
+          node.classList.toggle('active', node.dataset.path === path);
+        });
+        updateDirtyIndicator();
+      } catch (e) {
+        showToast('Nie udało się otworzyć pliku.');
+      }
+    }
+
+    async function saveCurrentFile() {
+      if (!state.currentPath) {
+        showToast('Najpierw wybierz plik .md.');
+        return;
+      }
+
+      const handle = state.fileMap.get(state.currentPath);
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(el.textarea.value);
+        await writable.close();
+        state.isDirty = false;
+        showToast('Plik zapisany.');
+        updateDirtyIndicator();
+      } catch (e) {
+        showToast('Nie udało się zapisać pliku.');
+      }
+    }
+
+    async function loadWorkspace() {
+      if (!('showDirectoryPicker' in window)) {
+        window.alert('Ta przeglądarka nie obsługuje File System Access API. Użyj aktualnego Chrome/Edge.');
+        return;
+      }
+
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        state.rootHandle = handle;
+        // workspaceId jako UUID per workspace (z localStorage lub generowany)
+        let wsKey = `uuid:${handle.name}`;
+        let uuid = window.localStorage.getItem(wsKey);
+        if (!uuid) {
+          uuid = crypto.randomUUID();
+          window.localStorage.setItem(wsKey, uuid);
+        }
+        state.workspaceId = uuid;
+        state.fileMap.clear();
+        state.expandedFolders = loadExpandedFoldersFromStorage();
+        el.workspaceLabel.textContent = handle.name;
+
+        const autoExpandDirs = state.expandedFolders.size === 0;
+        const tree = await scanDirectory(handle, '', autoExpandDirs);
+        state.treeRoot = tree;
+        renderTree(tree);
+        if (autoExpandDirs) saveExpandedFoldersToStorage();
+
+        const savedFile = loadLastFileFromStorage();
+        const firstFile = [...state.fileMap.keys()].sort((a, b) => a.localeCompare(b))[0];
+        const fileToOpen = savedFile && state.fileMap.has(savedFile) ? savedFile : firstFile;
+        if (fileToOpen) await openFile(fileToOpen);
+      } catch (error) {
+        if (error && error.name !== 'AbortError') {
+          showToast('Nie udało się otworzyć katalogu.');
+        }
+      }
+    }
+
+    function setupResizer(resizerId, leftPanelId, min, max) {
+      const resizer = document.getElementById(resizerId);
+      const panel = document.getElementById(leftPanelId);
+      let dragging = false;
+
+      resizer.addEventListener('mousedown', () => {
+        dragging = true;
+        document.body.style.cursor = 'col-resize';
+      });
+
+      window.addEventListener('mousemove', (event) => {
+        if (!dragging) return;
+        const rect = el.layout.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+
+        if (leftPanelId === 'file-browser') {
+          panel.style.width = `${Math.max(min, Math.min(max, x))}px`;
+          return;
+        }
+
+        const leftWidth = el.fileBrowser.getBoundingClientRect().width;
+        panel.style.width = `${Math.max(min, Math.min(max, x - leftWidth - 16))}px`;
+      });
+
+      window.addEventListener('mouseup', () => {
+        dragging = false;
+        document.body.style.cursor = 'default';
+      });
+    }
+
+    el.pickFolder.addEventListener('click', loadWorkspace);
+    el.saveBtn.addEventListener('click', saveCurrentFile);
+
+    el.textarea.addEventListener('input', () => {
+      state.isDirty = true;
+      renderMarkdown();
+      updateDirtyIndicator();
+    });
+
+    el.textarea.addEventListener('scroll', syncPreviewScrollFromEditor);
+
+    document.addEventListener('keydown', async (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        await saveCurrentFile();
+      }
+    });
+
+    setupResizer('resizer-1', 'file-browser', 220, 520);
+    setupResizer('resizer-2', 'editor-panel', 280, 900);
+    renderMarkdown();
+  </script>
+</body>
+</html>

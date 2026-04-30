@@ -1,0 +1,12 @@
+# Ignore everything by default
+*
+
+# Keep the repository metadata and the three files we want to publish
+!.gitignore
+!/index.html
+!/styles.css
+!/README.md
+
+# (Optional) If you later want to allow specific directories/files, add
+# explicit negations here, e.g. !/docs/important.md
+

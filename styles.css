@@ -1,0 +1,186 @@
+:root {
+  --azure-base: #55b9f3;
+  --azure-light: #61d3ff;
+  --azure-dark: #499fd1;
+  --azure-grad-start: #5bc7ff;
+  --azure-grad-end: #4da7db;
+  --text-main: #004767;
+  --text-soft: #003f5a;
+  --test-red: #d32f2f;
+}
+
+html,
+body {
+  background: var(--azure-base);
+  color: var(--text-main);
+  font-family: Manrope, Inter, sans-serif;
+}
+
+.app-header {
+  background: var(--azure-base);
+  box-shadow: 0 7px 14px rgba(73, 159, 209, 0.35), 0 -2px 7px rgba(97, 211, 255, 0.25);
+}
+
+.panel {
+  border-radius: 0.95rem;
+  background: var(--azure-base);
+}
+
+.panel-convex {
+  box-shadow: 7px 7px 14px var(--azure-dark), -7px -7px 14px var(--azure-light);
+}
+
+.panel-concave {
+  box-shadow: inset 7px 7px 14px var(--azure-dark), inset -7px -7px 14px var(--azure-light);
+}
+
+.panel-flat {
+  background: rgba(85, 185, 243, 0.75);
+  box-shadow: inset 6px 6px 12px rgba(73, 159, 209, 0.45), inset -6px -6px 12px rgba(97, 211, 255, 0.35);
+}
+
+.btn {
+  border-radius: 0.9rem;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-convex {
+  background: var(--azure-base);
+  color: var(--text-main);
+  box-shadow: 7px 7px 14px var(--azure-dark), -7px -7px 14px var(--azure-light);
+}
+
+.btn-convex:hover {
+  box-shadow: 9px 9px 18px var(--azure-dark), -9px -9px 18px var(--azure-light);
+}
+
+.btn-gradient {
+  background: linear-gradient(145deg, var(--azure-grad-start), var(--azure-grad-end));
+  color: #003a54;
+  box-shadow: 7px 7px 14px var(--azure-dark), -7px -7px 14px var(--azure-light);
+}
+
+.btn-gradient:hover {
+  box-shadow: 9px 9px 18px var(--azure-dark), -9px -9px 18px var(--azure-light);
+}
+
+.btn-gradient:active {
+  box-shadow: inset 7px 7px 14px var(--azure-dark), inset -7px -7px 14px var(--azure-light);
+}
+
+/* Keep breathing room for medium and small headings in the preview pane. */
+#md-output h2 {
+  padding: 0.55rem 0.3rem;
+  color: #002d3d;
+  font-weight: 700;
+}
+
+#md-output h3 {
+  padding: 0.45rem 0.3rem;
+  color: #002d3d;
+  font-weight: 700;
+}
+
+#md-output p {
+  color: #002d3d;
+  font-weight: 600;
+}
+
+.tree-folder {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: left;
+  color: rgba(0, 71, 103, 0.8);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tree-folder:hover {
+  background: rgba(97, 211, 255, 0.2);
+  color: var(--text-main);
+}
+
+.folder-icon {
+  font-size: 1.1rem;
+  color: rgba(0, 71, 103, 0.75);
+}
+
+.tree-file {
+  color: rgba(0, 71, 103, 0.78);
+}
+
+.tree-file:hover {
+  color: var(--text-main);
+  background: rgba(97, 211, 255, 0.2);
+}
+
+.tree-file.active {
+  font-weight: 700;
+  color: var(--text-main);
+  box-shadow: inset 7px 7px 14px var(--azure-dark), inset -7px -7px 14px var(--azure-light);
+}
+
+.resizer {
+  width: 8px;
+  margin: 0 -2px;
+  cursor: col-resize;
+  border-radius: 0.4rem;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.resizer:hover {
+  background: rgba(0, 52, 76, 0.15);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(73, 159, 209, 0.8);
+  border-radius: 99px;
+}
+
+textarea::placeholder {
+  color: rgba(0, 71, 103, 0.55);
+}
+
+.file-dirty {
+  color: var(--test-red) !important;
+  font-weight: 700;
+}
+
+.tree-file.file-dirty {
+  color: var(--test-red) !important;
+}
+
+.toast {
+  animation: toast-fade 2.6s ease forwards;
+}
+
+@keyframes toast-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  10%,
+  70% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+
